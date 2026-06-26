@@ -32,7 +32,7 @@ processes own the focused window.
 ### Requirements
 
 `install.sh` checks for these and offers to install any that are missing using your package
-manager (apt, dnf, pacman, zypper, or brew). You can also install them yourself:
+manager. You can also install them yourself:
 
 - **Linux**: `xdotool` (`sudo apt install xdotool`). Works on X11; Wayland support depends on
   `xdotool` compatibility. For sound you almost certainly already have a player (`paplay` or
