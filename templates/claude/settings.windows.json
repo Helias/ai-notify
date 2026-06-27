@@ -1,0 +1,26 @@
+{
+  "preferredNotifChannel": "notifications_disabled",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"[COMMAND_PATH]/notify-if-unfocused.ps1\" -TrustForegroundTerminal"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"[COMMAND_PATH]/notify-if-unfocused.ps1\" -TrustForegroundTerminal"
+          }
+        ]
+      }
+    ]
+  }
+}
