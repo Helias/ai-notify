@@ -52,6 +52,51 @@ function Write-Utf8NoBom([string]$path, [string]$content) {
   [System.IO.File]::WriteAllText($path, $content, $encoding)
 }
 
+# Pretty-print an object as JSON with 2-space indentation. PowerShell 5.1's built-in
+# ConvertTo-Json aligns nested values under their key column, which looks ragged; this
+# emits clean, fixed-width indentation instead. Scalars are delegated to ConvertTo-Json
+# so string escaping and number/boolean formatting stay correct.
+function ConvertTo-PrettyJson($Value, [int]$Indent = 0) {
+  $pad = '  ' * $Indent
+  $padInner = '  ' * ($Indent + 1)
+
+  if ($null -eq $Value) { return 'null' }
+
+  if ($Value -is [pscustomobject]) {
+    $props = @($Value.PSObject.Properties)
+    if ($props.Count -eq 0) { return '{}' }
+    $lines = foreach ($p in $props) {
+      $key = $p.Name | ConvertTo-Json -Compress
+      $val = ConvertTo-PrettyJson $p.Value ($Indent + 1)
+      "$padInner${key}: $val"
+    }
+    return "{`n" + ($lines -join ",`n") + "`n$pad}"
+  }
+
+  if ($Value -is [System.Collections.IDictionary]) {
+    $keys = @($Value.Keys)
+    if ($keys.Count -eq 0) { return '{}' }
+    $lines = foreach ($k in $keys) {
+      $key = "$k" | ConvertTo-Json -Compress
+      $val = ConvertTo-PrettyJson $Value[$k] ($Indent + 1)
+      "$padInner${key}: $val"
+    }
+    return "{`n" + ($lines -join ",`n") + "`n$pad}"
+  }
+
+  # Arrays / other enumerables (strings are IEnumerable too, so exclude them here).
+  if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+    $items = @($Value)
+    if ($items.Count -eq 0) { return '[]' }
+    $lines = foreach ($item in $items) {
+      "$padInner$(ConvertTo-PrettyJson $item ($Indent + 1))"
+    }
+    return "[`n" + ($lines -join ",`n") + "`n$pad]"
+  }
+
+  return ($Value | ConvertTo-Json -Compress)
+}
+
 # Deep-merge two objects parsed from JSON; values from $overlay win. Objects merge
 # recursively; scalars and arrays are replaced (matches jq's `.[0] * .[1]`).
 function Merge-Json($base, $overlay) {
@@ -91,10 +136,10 @@ function Install-Json([string]$src, [string]$dst) {
     }
     $merged = Merge-Json $existing $overlay
     Backup $dst
-    Write-Utf8NoBom $dst ($merged | ConvertTo-Json -Depth 32)
+    Write-Utf8NoBom $dst ((ConvertTo-PrettyJson $merged) + "`n")
     Write-Host "  merged into $dst"
   } else {
-    Write-Utf8NoBom $dst ($overlay | ConvertTo-Json -Depth 32)
+    Write-Utf8NoBom $dst ((ConvertTo-PrettyJson $overlay) + "`n")
     Write-Host "  wrote $dst"
   }
 }
